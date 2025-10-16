@@ -1,5 +1,10 @@
 # 📊 AWS Service Report Generator
 
+![License](https://img.shields.io/badge/license-ISC-blue.svg)
+![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)
+![AWS SDK](https://img.shields.io/badge/AWS%20SDK-v3.670.0-orange.svg)
+![SAM](https://img.shields.io/badge/AWS%20SAM-Serverless-yellow.svg)
+
 Automated AWS Lambda function that generates Excel reports from AWS infrastructure data. Processes data from the [aws-infrastructure-fetcher](https://github.com/jxman/aws-infrastructure-fetcher) project and creates comprehensive Excel reports with region, service, and availability information.
 
 > **Part of the AWS Infrastructure Suite**: This project consumes data produced by [aws-infrastructure-fetcher](https://github.com/jxman/aws-infrastructure-fetcher), which collects AWS region and service data daily at 2 AM UTC.
