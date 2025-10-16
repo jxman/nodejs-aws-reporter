@@ -1,0 +1,191 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: AWS Service Report Generator - Automated Excel reporting from infrastructure data
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+
+Parameters:
+  SourceBucketName:
+    Type: String
+    Default: aws-data-fetcher-output
+    Description: S3 bucket containing source data
+
+  NotificationEmail:
+    Type: String
+    Default: jxman@hotmail.com
+    Description: Email address for report notifications
+    AllowedPattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+
+Resources:
+  # SNS Topic for Notifications
+  ReportNotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: aws-service-report-notifications
+      DisplayName: AWS Service Report Notifications
+      Subscription:
+        - Endpoint: !Ref NotificationEmail
+          Protocol: email
+
+  # Lambda Function
+  ReportGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: aws-service-report-generator
+      Description: Generates Excel reports from AWS infrastructure data
+      CodeUri: src/
+      Handler: index.handler
+      Environment:
+        Variables:
+          SOURCE_BUCKET: !Ref SourceBucketName
+          SOURCE_KEY: aws-data/complete-data.json
+          REPORT_BUCKET: !Ref SourceBucketName
+          REPORT_PREFIX: reports/
+          ARCHIVE_PREFIX: reports/archive/
+          LATEST_REPORT_NAME: aws-service-report-latest.xlsx
+          ARCHIVE_RETENTION_DAYS: '7'
+          SNS_TOPIC_ARN: !Ref ReportNotificationsTopic
+          NODE_ENV: production
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            # S3 Read Access (Source Data)
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub arn:aws:s3:::${SourceBucketName}/aws-data/*
+            # S3 Write/Delete Access (Reports)
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+                - s3:DeleteObject
+              Resource: !Sub arn:aws:s3:::${SourceBucketName}/reports/*
+            # S3 List Access (Archive Management)
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${SourceBucketName}
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - reports/archive/*
+            # SNS Publish Access
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref ReportNotificationsTopic
+            # CloudWatch Logs (Basic Execution)
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/aws-service-report-generator:*
+
+  # S3 Event Permission for Lambda
+  ReportGeneratorS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReportGeneratorFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::${SourceBucketName}
+
+  # CloudWatch Log Group
+  ReportGeneratorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ReportGeneratorFunction}
+      RetentionInDays: 30
+
+  # CloudWatch Alarms
+  ReportGeneratorErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: aws-service-report-generator-errors
+      AlarmDescription: Alert when Lambda function encounters errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 86400  # 1 day
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReportGeneratorFunction
+      AlarmActions:
+        - !Ref ReportNotificationsTopic
+      TreatMissingData: notBreaching
+
+  ReportGeneratorTimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: aws-service-report-generator-timeout-warning
+      AlarmDescription: Alert when Lambda duration approaches timeout
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 3600  # 1 hour
+      EvaluationPeriods: 1
+      Threshold: 240000  # 240 seconds (4 minutes)
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReportGeneratorFunction
+      AlarmActions:
+        - !Ref ReportNotificationsTopic
+      TreatMissingData: notBreaching
+
+Outputs:
+  ReportGeneratorFunctionArn:
+    Description: ARN of the report generator Lambda function
+    Value: !GetAtt ReportGeneratorFunction.Arn
+    Export:
+      Name: aws-service-report-generator-arn
+
+  ReportGeneratorFunctionName:
+    Description: Name of the report generator Lambda function
+    Value: !Ref ReportGeneratorFunction
+
+  ReportNotificationsTopicArn:
+    Description: ARN of the SNS topic for notifications
+    Value: !Ref ReportNotificationsTopic
+    Export:
+      Name: aws-service-report-notifications-topic-arn
+
+  LatestReportS3Path:
+    Description: S3 path to the latest report
+    Value: !Sub s3://${SourceBucketName}/reports/aws-service-report-latest.xlsx
+
+  ArchiveReportsS3Path:
+    Description: S3 path to archived reports
+    Value: !Sub s3://${SourceBucketName}/reports/archive/
+
+  S3EventConfigurationCommand:
+    Description: Command to configure S3 event notification (run after deployment)
+    Value: !Sub |
+      aws s3api put-bucket-notification-configuration \
+        --bucket ${SourceBucketName} \
+        --notification-configuration '{
+          "LambdaFunctionConfigurations": [{
+            "LambdaFunctionArn": "${ReportGeneratorFunction.Arn}",
+            "Events": ["s3:ObjectCreated:*"],
+            "Filter": {
+              "Key": {
+                "FilterRules": [
+                  {"Name": "prefix", "Value": "aws-data/"},
+                  {"Name": "suffix", "Value": "complete-data.json"}
+                ]
+              }
+            }
+          }]
+        }'
