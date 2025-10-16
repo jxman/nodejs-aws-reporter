@@ -24,37 +24,29 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
 
 ## Architecture
 
-```
-┌─────────────────┐
-│  S3 Data Source │
-│  (Input Bucket) │
-│ complete-data   │
-└────────┬────────┘
-         │
-         │ S3 Event Trigger (daily 2 AM UTC)
-         │ or Manual Invocation
-         │
-         ▼
-┌─────────────────┐
-│ Lambda Function │
-│ (Node.js 20.x)  │
-│ Report Gen      │
-└────────┬────────┘
-         │
-         │ (1) Read JSON data from S3
-         │ (2) Generate 4-sheet Excel report
-         │ (3) Upload latest + timestamped archive
-         │ (4) Clean archives older than 7 days
-         │
-         ├──────────────────────────────┐
-         │                              │
-         ▼                              ▼
-┌─────────────────┐            ┌─────────────────┐
-│  S3 Reports     │            │   SNS Topic     │
-│  (Output)       │            │ (Notifications) │
-│  latest.xlsx    │            │ Email Alerts    │
-│  /archive/*.xlsx│            └─────────────────┘
-└─────────────────┘
+```mermaid
+graph TB
+    subgraph "Input"
+        S3Input["☁️ S3 Bucket<br/>aws-data-fetcher-output<br/>/aws-data/complete-data.json"]
+    end
+
+    subgraph "Processing"
+        Lambda["⚡ Lambda Function<br/>Node.js 20.x<br/>Report Generator"]
+    end
+
+    subgraph "Output"
+        S3Output["📊 S3 Bucket<br/>aws-data-fetcher-output<br/>/reports/"]
+        SNS["📧 SNS Topic<br/>Email Notifications"]
+    end
+
+    S3Input -->|"S3 Event Trigger<br/>(Daily 2 AM UTC)<br/>or Manual Invoke"| Lambda
+    Lambda -->|"1. Read JSON data<br/>2. Generate Excel (4 sheets)<br/>3. Upload latest + archive<br/>4. Clean old archives (>7 days)"| S3Output
+    Lambda -->|"Success/Failure<br/>Alerts with Metrics"| SNS
+
+    style S3Input fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style Lambda fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style S3Output fill:#3F8624,stroke:#232F3E,stroke-width:2px,color:#fff
+    style SNS fill:#D42029,stroke:#232F3E,stroke-width:2px,color:#fff
 ```
 
 ## Prerequisites
