@@ -20,34 +20,36 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
 ## Architecture
 
 ```
-┌─────────────────────┐
-│   S3 Source Bucket  │
-│ aws-data-fetcher-   │
-│      output         │
-│  /aws-data/*.json   │
-└──────────┬──────────┘
-           │
-           │ (1) S3 Event (daily 2 AM) or Manual Trigger
-           │
-           ▼
-┌─────────────────────┐
-│  Lambda Function    │
-│  Report Generator   │
-│  (Node.js 20.x)     │
-└──────┬──────────────┘
-       │
-       │ (2) Reads complete-data.json
-       │ (3) Generates Excel report
-       │ (4) Manages retention (latest + 7-day archive)
-       │
-       ├────────────────────────────┐
-       ▼                            ▼
-┌─────────────────────┐    ┌─────────────────────┐
-│ S3 Reports Bucket   │    │    SNS Topic        │
-│  /reports/          │    │ (Success/Failure)   │
-│  latest.xlsx        │    │  Email Alerts       │
-│  /archive/*.xlsx    │    └─────────────────────┘
-└─────────────────────┘
+┌─────────────────┐
+│  S3 Data Source │
+│  (Input Bucket) │
+│ complete-data   │
+└────────┬────────┘
+         │
+         │ S3 Event Trigger (daily 2 AM UTC)
+         │ or Manual Invocation
+         │
+         ▼
+┌─────────────────┐
+│ Lambda Function │
+│ (Node.js 20.x)  │
+│ Report Gen      │
+└────────┬────────┘
+         │
+         │ (1) Read JSON data from S3
+         │ (2) Generate 4-sheet Excel report
+         │ (3) Upload latest + timestamped archive
+         │ (4) Clean archives older than 7 days
+         │
+         ├──────────────────────────────┐
+         │                              │
+         ▼                              ▼
+┌─────────────────┐            ┌─────────────────┐
+│  S3 Reports     │            │   SNS Topic     │
+│  (Output)       │            │ (Notifications) │
+│  latest.xlsx    │            │ Email Alerts    │
+│  /archive/*.xlsx│            └─────────────────┘
+└─────────────────┘
 ```
 
 ## Prerequisites
