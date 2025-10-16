@@ -25,19 +25,32 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
 ## Architecture
 
 ```mermaid
-architecture-beta
-    group input(logos:aws-s3)[Data Input]
-    group processing(logos:aws-lambda)[Report Processing]
-    group output(logos:aws)[Output Services]
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#FF9900','primaryTextColor':'#fff','primaryBorderColor':'#232F3E','lineColor':'#232F3E','secondaryColor':'#146EB4','tertiaryColor':'#3F8624'}}}%%
+graph LR
+    subgraph Input["📥 Data Input"]
+        S3_IN["S3 Bucket<br/>aws-data-fetcher-output<br/>/aws-data/complete-data.json"]
+    end
 
-    service s3input(logos:aws-s3)[S3 Source Data] in input
-    service lambda(logos:aws-lambda)[Lambda Report Generator] in processing
-    service s3output(logos:aws-s3)[S3 Reports Output] in output
-    service sns(logos:aws-sns)[SNS Notifications] in output
+    subgraph Processing["⚡ Report Processing"]
+        LAMBDA["Lambda Function<br/>Node.js 20.x<br/>Excel Report Generator"]
+    end
 
-    s3input:R -- L:lambda
-    lambda:R -- L:s3output
-    lambda:R -- L:sns
+    subgraph Output["📤 Output Services"]
+        S3_OUT["S3 Bucket<br/>aws-data-fetcher-output<br/>/reports/"]
+        SNS["SNS Topic<br/>Email Notifications"]
+    end
+
+    S3_IN -->|"S3 Event Trigger<br/>(Daily 2 AM UTC)"| LAMBDA
+    LAMBDA -->|"Upload Reports<br/>(Latest + Archive)"| S3_OUT
+    LAMBDA -->|"Send Alerts<br/>(Success/Failure)"| SNS
+
+    classDef s3Style fill:#3F8624,stroke:#232F3E,stroke-width:3px,color:#fff
+    classDef lambdaStyle fill:#FF9900,stroke:#232F3E,stroke-width:3px,color:#fff
+    classDef snsStyle fill:#D42029,stroke:#232F3E,stroke-width:3px,color:#fff
+
+    class S3_IN,S3_OUT s3Style
+    class LAMBDA lambdaStyle
+    class SNS snsStyle
 ```
 
 ## Prerequisites
