@@ -25,28 +25,28 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
 ## Architecture
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#FF9900','primaryTextColor':'#fff','primaryBorderColor':'#232F3E','lineColor':'#232F3E','secondaryColor':'#146EB4','tertiaryColor':'#3F8624'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#232F3E','primaryTextColor':'#fff','primaryBorderColor':'#FF9900','lineColor':'#545B64','secondaryColor':'#FF9900','tertiaryColor':'#146EB4'}}}%%
 graph LR
     subgraph Input["📥 Data Input"]
-        S3_IN["S3 Bucket<br/>aws-data-fetcher-output<br/>/aws-data/complete-data.json"]
+        S3_IN["<b>S3 Source Bucket</b><br/><i>complete-data.json</i>"]
     end
 
     subgraph Processing["⚡ Report Processing"]
-        LAMBDA["Lambda Function<br/>Node.js 20.x<br/>Excel Report Generator"]
+        LAMBDA["<b>Lambda Function</b><br/><i>Node.js 20.x</i><br/>Excel Report Generator"]
     end
 
     subgraph Output["📤 Output Services"]
-        S3_OUT["S3 Bucket<br/>aws-data-fetcher-output<br/>/reports/"]
-        SNS["SNS Topic<br/>Email Notifications"]
+        S3_OUT["<b>S3 Reports Bucket</b><br/><i>/reports/</i>"]
+        SNS["<b>SNS Topic</b><br/>Email Notifications"]
     end
 
     S3_IN -->|"S3 Event Trigger<br/>(Daily 2 AM UTC)"| LAMBDA
     LAMBDA -->|"Upload Reports<br/>(Latest + Archive)"| S3_OUT
     LAMBDA -->|"Send Alerts<br/>(Success/Failure)"| SNS
 
-    classDef s3Style fill:#3F8624,stroke:#232F3E,stroke-width:3px,color:#fff
-    classDef lambdaStyle fill:#FF9900,stroke:#232F3E,stroke-width:3px,color:#fff
-    classDef snsStyle fill:#D42029,stroke:#232F3E,stroke-width:3px,color:#fff
+    classDef s3Style fill:#569A31,stroke:#1A472A,stroke-width:3px,color:#fff,font-weight:bold
+    classDef lambdaStyle fill:#FF9900,stroke:#CC7700,stroke-width:3px,color:#232F3E,font-weight:bold
+    classDef snsStyle fill:#E7157B,stroke:#870F4E,stroke-width:3px,color:#fff,font-weight:bold
 
     class S3_IN,S3_OUT s3Style
     class LAMBDA lambdaStyle
