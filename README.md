@@ -25,28 +25,19 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph "Input"
-        S3Input["☁️ S3 Bucket<br/>aws-data-fetcher-output<br/>/aws-data/complete-data.json"]
-    end
+architecture-beta
+    group input(logos:aws-s3)[Data Input]
+    group processing(logos:aws-lambda)[Report Processing]
+    group output(logos:aws)[Output Services]
 
-    subgraph "Processing"
-        Lambda["⚡ Lambda Function<br/>Node.js 20.x<br/>Report Generator"]
-    end
+    service s3input(logos:aws-s3)[S3 Source Bucket<br/>complete-data.json] in input
+    service lambda(logos:aws-lambda)[Lambda Function<br/>Node.js 20.x<br/>Report Generator] in processing
+    service s3output(logos:aws-s3)[S3 Reports Bucket<br/>latest & archive] in output
+    service sns(logos:aws-sns)[SNS Topic<br/>Email Alerts] in output
 
-    subgraph "Output"
-        S3Output["📊 S3 Bucket<br/>aws-data-fetcher-output<br/>/reports/"]
-        SNS["📧 SNS Topic<br/>Email Notifications"]
-    end
-
-    S3Input -->|"S3 Event Trigger<br/>(Daily 2 AM UTC)<br/>or Manual Invoke"| Lambda
-    Lambda -->|"1. Read JSON data<br/>2. Generate Excel (4 sheets)<br/>3. Upload latest + archive<br/>4. Clean old archives (>7 days)"| S3Output
-    Lambda -->|"Success/Failure<br/>Alerts with Metrics"| SNS
-
-    style S3Input fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    style Lambda fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    style S3Output fill:#3F8624,stroke:#232F3E,stroke-width:2px,color:#fff
-    style SNS fill:#D42029,stroke:#232F3E,stroke-width:2px,color:#fff
+    s3input:R -- L:lambda
+    lambda:R -- L:s3output
+    lambda:R -- L:sns
 ```
 
 ## Prerequisites
