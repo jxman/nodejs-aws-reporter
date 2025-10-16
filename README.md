@@ -30,10 +30,10 @@ architecture-beta
     group processing(logos:aws-lambda)[Report Processing]
     group output(logos:aws)[Output Services]
 
-    service s3input(logos:aws-s3)[S3 Source Bucket<br/>complete-data.json] in input
-    service lambda(logos:aws-lambda)[Lambda Function<br/>Node.js 20.x<br/>Report Generator] in processing
-    service s3output(logos:aws-s3)[S3 Reports Bucket<br/>latest & archive] in output
-    service sns(logos:aws-sns)[SNS Topic<br/>Email Alerts] in output
+    service s3input(logos:aws-s3)[S3 Source Data] in input
+    service lambda(logos:aws-lambda)[Lambda Report Generator] in processing
+    service s3output(logos:aws-s3)[S3 Reports Output] in output
+    service sns(logos:aws-sns)[SNS Notifications] in output
 
     s3input:R -- L:lambda
     lambda:R -- L:s3output
