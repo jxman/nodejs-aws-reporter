@@ -55,3 +55,6 @@ response.json
 
 # OIDC setup script output
 oidc-role-arn.txt
+
+# Archived/deprecated code
+archived/

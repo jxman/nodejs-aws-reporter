@@ -23,6 +23,19 @@ Parameters:
     Description: Email address for report notifications
     AllowedPattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
 
+  DistributionBucketName:
+    Type: String
+    Default: ''
+    Description: (Optional) S3 bucket for public distribution (e.g., www.aws-services.synepho.com). Leave empty to disable distribution.
+
+  DistributionKeyPath:
+    Type: String
+    Default: reports/aws-service-report-latest.xlsx
+    Description: S3 key path in distribution bucket for the report
+
+Conditions:
+  HasDistributionBucket: !Not [!Equals [!Ref DistributionBucketName, '']]
+
 Resources:
   # SNS Topic for Notifications
   ReportNotificationsTopic:
@@ -52,6 +65,8 @@ Resources:
           LATEST_REPORT_NAME: aws-service-report-latest.xlsx
           ARCHIVE_RETENTION_DAYS: '7'
           SNS_TOPIC_ARN: !Ref ReportNotificationsTopic
+          DISTRIBUTION_BUCKET: !Ref DistributionBucketName
+          DISTRIBUTION_KEY: !Ref DistributionKeyPath
           NODE_ENV: production
       Policies:
         - Version: '2012-10-17'
@@ -89,6 +104,23 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/aws-service-report-generator:*
+        # Distribution Bucket Access (Conditional)
+        - !If
+          - HasDistributionBucket
+          - Version: '2012-10-17'
+            Statement:
+              # S3 Read Access (Copy Source)
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub arn:aws:s3:::${SourceBucketName}/reports/aws-service-report-latest.xlsx
+              # S3 Write Access (Distribution Destination)
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub arn:aws:s3:::${DistributionBucketName}/${DistributionKeyPath}
+          - !Ref AWS::NoValue
 
   # S3 Event Permission for Lambda
   ReportGeneratorS3Permission:
