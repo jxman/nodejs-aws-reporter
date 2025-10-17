@@ -18,6 +18,7 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
   - Services with regional coverage metrics and percentage calculations
   - Service Coverage matrix with visual availability indicators (✓/✗)
 - **Smart Retention**: Latest report always available + 7-day archive with automatic cleanup
+- **Public Distribution**: Optional automatic copying to public S3 bucket for web access (with 5-minute cache)
 - **Email Notifications**: Success/failure notifications with emojis and detailed metrics
 - **Data Quality**: Missing values displayed as "N/A" in gray italic, consistent date formatting
 - **Production-Ready**: Error handling, retry logic, structured logging, and CloudWatch alarms
@@ -51,6 +52,54 @@ graph LR
     class S3_IN,S3_OUT s3Style
     class LAMBDA lambdaStyle
     class SNS snsStyle
+```
+
+## How It Works
+
+### Automated Trigger (Primary Method)
+
+The Lambda function is **automatically triggered** by S3 event notifications:
+
+1. The `aws-infrastructure-fetcher` Lambda runs daily at **2:00 AM UTC**
+2. It uploads fresh AWS infrastructure data to `s3://aws-data-fetcher-output/aws-data/complete-data.json`
+3. S3 detects the file upload (ObjectCreated event) and automatically invokes this Lambda function
+4. The function generates the Excel report (~4 seconds)
+5. Reports are uploaded to `s3://aws-data-fetcher-output/reports/`
+6. SNS sends an email notification with results
+
+**Requirements for automation:**
+- ✅ S3 bucket must have event notification configured (see Step 6 in Quick Start)
+- ✅ Lambda function must have permission to be invoked by S3
+- ✅ Source data must be uploaded to the correct S3 path
+
+### Manual Trigger (Testing/On-Demand)
+
+You can also manually invoke the function anytime:
+
+```bash
+aws lambda invoke \
+  --function-name aws-service-report-generator \
+  --payload '{}' \
+  response.json
+```
+
+**Use cases:**
+- Testing after code changes
+- Generating reports on-demand
+- Troubleshooting issues
+- Refreshing report with current timestamp
+
+### Trigger Verification
+
+**Check if S3 event notification is configured:**
+```bash
+aws s3api get-bucket-notification-configuration \
+  --bucket aws-data-fetcher-output
+```
+
+**Check recent Lambda executions:**
+```bash
+aws logs tail /aws/lambda/aws-service-report-generator --since 24h
 ```
 
 ## Prerequisites
@@ -93,6 +142,8 @@ Follow the prompts:
 - **AWS Region**: `us-east-1` (or your preferred region)
 - **Parameter SourceBucketName**: `aws-data-fetcher-output`
 - **Parameter NotificationEmail**: `your-email@example.com`
+- **Parameter DistributionBucketName**: (Optional) Public S3 bucket for distribution (e.g., `www.aws-services.synepho.com`), or leave empty to skip distribution
+- **Parameter DistributionKeyPath**: (Optional) S3 key path in distribution bucket, default: `reports/aws-service-report-latest.xlsx`
 - **Confirm changes before deploy**: `Y`
 - **Allow SAM CLI IAM role creation**: `Y`
 - **Save arguments to configuration file**: `Y`
@@ -101,19 +152,63 @@ Follow the prompts:
 
 Check your email and click the confirmation link to receive notifications.
 
-### 6. Configure S3 Event Trigger
+### 6. Configure S3 Event Trigger (CRITICAL)
 
-After deployment, run the command from the CloudFormation outputs:
+**⚠️ This is a required one-time setup step for automatic daily report generation.**
 
+The S3 bucket needs to be configured to automatically trigger the Lambda function when new data files are uploaded. Without this configuration, reports will only run when manually invoked.
+
+#### What This Does
+Configures the S3 bucket `aws-data-fetcher-output` to send event notifications to the Lambda function whenever `complete-data.json` is created or updated. This enables automatic daily report generation when the `aws-infrastructure-fetcher` runs at 2 AM UTC.
+
+#### Setup Steps
+
+**Step 1: Get the configuration command from CloudFormation stack outputs**
 ```bash
-# Get the command from stack outputs
 aws cloudformation describe-stacks \
   --stack-name aws-service-report-generator \
   --query 'Stacks[0].Outputs[?OutputKey==`S3EventConfigurationCommand`].OutputValue' \
   --output text
 ```
 
-Then execute the returned command to enable automatic S3 triggers.
+This returns a pre-formatted `aws s3api put-bucket-notification-configuration` command with the correct Lambda ARN and permissions.
+
+**Step 2: Execute the returned command**
+Copy and run the command returned from Step 1. It will look similar to:
+```bash
+aws s3api put-bucket-notification-configuration \
+  --bucket aws-data-fetcher-output \
+  --notification-configuration '{...}'
+```
+
+#### Verify Configuration
+
+Check that the S3 event notification is configured:
+```bash
+aws s3api get-bucket-notification-configuration \
+  --bucket aws-data-fetcher-output
+```
+
+You should see a `LambdaFunctionConfigurations` section with:
+- **Events**: `["s3:ObjectCreated:*"]`
+- **Filter**: `{"Key": {"FilterRules": [{"Name": "prefix", "Value": "aws-data/"}, {"Name": "suffix", "Value": "complete-data.json"}]}}`
+- **LambdaFunctionArn**: Points to your report generator function
+
+#### How It Works
+```
+Daily at 2 AM UTC:
+aws-infrastructure-fetcher runs
+    ↓
+Uploads complete-data.json to S3
+    ↓
+S3 detects ObjectCreated event
+    ↓
+S3 automatically invokes Lambda function
+    ↓
+Report generated and uploaded
+    ↓
+SNS email notification sent
+```
 
 ### 7. Test Manual Invocation
 
@@ -180,6 +275,7 @@ Comprehensive matrix showing service availability by region
 
 ## S3 Bucket Structure
 
+### Source & Report Bucket (aws-data-fetcher-output)
 ```
 aws-data-fetcher-output/
 ├── aws-data/
@@ -191,6 +287,21 @@ aws-data-fetcher-output/
         ├── aws-service-report-2025-10-13-020500.xlsx
         └── ... (7 days retained, older automatically deleted)
 ```
+
+### Distribution Bucket (Optional)
+If configured, the latest report is automatically copied to a public distribution bucket:
+```
+www.aws-services.synepho.com/     (Example public bucket)
+└── reports/
+    └── aws-service-report-latest.xlsx   (Publicly accessible with 5-minute cache)
+```
+
+**Distribution Details:**
+- Happens automatically after each report generation
+- Uses S3 CopyObject for fast, server-side copying
+- Sets `cache-control: public, max-age=300` (5-minute cache for CDN/browser)
+- Non-critical operation: failures are logged but don't stop report generation
+- Useful for serving reports via S3 static website hosting or CloudFront CDN
 
 ## Email Notifications
 
@@ -233,6 +344,33 @@ Archive Report: s3://aws-data-fetcher-output/reports/archive/aws-service-report-
 2. Check aws-infrastructure-fetcher Lambda execution logs
 3. Verify data fetcher completed successfully at 2 AM UTC
 ```
+
+## Configuration
+
+### Enable/Disable Public Distribution
+
+**Enable distribution during deployment:**
+```bash
+sam deploy --parameter-overrides \
+  DistributionBucketName=www.aws-services.synepho.com \
+  DistributionKeyPath=reports/aws-service-report-latest.xlsx
+```
+
+**Disable distribution:**
+```bash
+sam deploy --parameter-overrides DistributionBucketName=''
+```
+
+**Check current configuration:**
+```bash
+aws lambda get-function-configuration \
+  --function-name aws-service-report-generator \
+  --query 'Environment.Variables.DISTRIBUTION_BUCKET'
+```
+
+### Change Distribution Cache Duration
+
+The default cache-control is `public, max-age=300` (5 minutes). To change this, edit `src/archiveManager.js` and update the `CacheControl` value in the `distributeReports()` function.
 
 ## Development
 
@@ -310,15 +448,95 @@ Standard Lambda metrics:
 2. Check spam/junk folder
 3. Verify topic ARN in Lambda environment variables
 
-### S3 Event Not Triggering
+### S3 Event Not Triggering Lambda
 
-1. Run the S3 event configuration command (from deployment outputs)
-2. Verify Lambda has permission to be invoked by S3
-3. Check S3 bucket notification configuration:
-   ```bash
-   aws s3api get-bucket-notification-configuration \
-     --bucket aws-data-fetcher-output
-   ```
+**Symptom**: Reports are not generated automatically when `aws-infrastructure-fetcher` uploads new data at 2 AM UTC.
+
+#### Diagnostic Steps
+
+**1. Verify S3 event notification is configured**
+```bash
+aws s3api get-bucket-notification-configuration \
+  --bucket aws-data-fetcher-output
+```
+
+Expected output should include:
+```json
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "InvokeReportGenerator",
+      "LambdaFunctionArn": "arn:aws:lambda:us-east-1:ACCOUNT:function:aws-service-report-generator",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            {"Name": "prefix", "Value": "aws-data/"},
+            {"Name": "suffix", "Value": "complete-data.json"}
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+If empty or missing, run the configuration command from CloudFormation stack outputs (see Step 6 in Quick Start).
+
+**2. Check if source data file exists and is being updated**
+```bash
+# Check if file exists
+aws s3 ls s3://aws-data-fetcher-output/aws-data/complete-data.json
+
+# Check last modified timestamp
+aws s3api head-object \
+  --bucket aws-data-fetcher-output \
+  --key aws-data/complete-data.json \
+  --query 'LastModified' \
+  --output text
+```
+
+**3. Verify Lambda has S3 invoke permissions**
+Check Lambda function policy:
+```bash
+aws lambda get-policy \
+  --function-name aws-service-report-generator \
+  --query 'Policy' \
+  --output text | jq '.'
+```
+
+Should include a statement allowing `s3.amazonaws.com` to invoke the function.
+
+**4. Test manual Lambda invocation**
+```bash
+aws lambda invoke \
+  --function-name aws-service-report-generator \
+  --payload '{}' \
+  response.json && cat response.json
+```
+
+If manual invocation works but S3 trigger doesn't, the S3 event notification configuration is the issue.
+
+#### Resolution
+
+**Option 1: Reconfigure S3 event notification**
+```bash
+# Get the configuration command
+aws cloudformation describe-stacks \
+  --stack-name aws-service-report-generator \
+  --query 'Stacks[0].Outputs[?OutputKey==`S3EventConfigurationCommand`].OutputValue' \
+  --output text
+
+# Execute the returned command
+```
+
+**Option 2: Manually configure (if CloudFormation output not available)**
+See [AWS S3 Event Notification Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-event-types-and-destinations.html) for manual configuration steps.
+
+#### Prevention
+- Do not modify S3 bucket notification configuration outside of this deployment
+- The S3 bucket can only have one notification configuration; adding others may overwrite this setup
+- Verify configuration after any infrastructure changes to the S3 bucket
 
 ## Cost Estimate
 
