@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+.aws-sam/
+dist/
+build/
+
+# Test files
+coverage/
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store

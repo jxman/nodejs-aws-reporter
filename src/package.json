@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "echo \"No linting configured yet\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "build": "sam build",
     "deploy": "sam deploy",
     "validate": "sam validate"
@@ -25,7 +26,13 @@
     "exceljs": "^4.4.0",
     "date-fns": "^3.6.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.1.1"
+  },
   "engines": {
     "node": ">=20.0.0"
   }

@@ -12,15 +12,15 @@ const { format } = require('date-fns');
  * @returns {string} Formatted duration
  */
 function formatDuration(ms) {
-    if (ms < 1000) {
-        return `${ms}ms`;
-    } else if (ms < 60000) {
-        return `${(ms / 1000).toFixed(2)}s`;
-    } else {
-        const minutes = Math.floor(ms / 60000);
-        const seconds = ((ms % 60000) / 1000).toFixed(0);
-        return `${minutes}m ${seconds}s`;
-    }
+  if (ms < 1000) {
+    return `${ms}ms`;
+  } else if (ms < 60000) {
+    return `${(ms / 1000).toFixed(2)}s`;
+  } else {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(0);
+    return `${minutes}m ${seconds}s`;
+  }
 }
 
 /**
@@ -29,13 +29,13 @@ function formatDuration(ms) {
  * @returns {string} Formatted file size
  */
 function formatFileSize(bytes) {
-    if (bytes < 1024) {
-        return `${bytes} bytes`;
-    } else if (bytes < 1048576) {
-        return `${(bytes / 1024).toFixed(2)} KB`;
-    } else {
-        return `${(bytes / 1048576).toFixed(2)} MB`;
-    }
+  if (bytes < 1024) {
+    return `${bytes} bytes`;
+  } else if (bytes < 1048576) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  } else {
+    return `${(bytes / 1048576).toFixed(2)} MB`;
+  }
 }
 
 /**
@@ -45,8 +45,8 @@ function formatFileSize(bytes) {
  * @returns {string} Filename with timestamp
  */
 function generateTimestampedFilename(baseName, extension) {
-    const timestamp = format(new Date(), 'yyyy-MM-dd-HHmmss');
-    return `${baseName}-${timestamp}${extension}`;
+  const timestamp = format(new Date(), 'yyyy-MM-dd-HHmmss');
+  return `${baseName}-${timestamp}${extension}`;
 }
 
 /**
@@ -55,7 +55,7 @@ function generateTimestampedFilename(baseName, extension) {
  * @returns {string} ISO formatted date string
  */
 function formatDateUTC(date) {
-    return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+  return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
 }
 
 /**
@@ -64,34 +64,34 @@ function formatDateUTC(date) {
  * @returns {string} Formatted date string in EST/EDT
  */
 function formatDateEST(date) {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-    // Format using US Eastern timezone
-    const options = {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    };
+  // Format using US Eastern timezone
+  const options = {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
 
-    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(dateObj);
-    const partMap = {};
-    parts.forEach(part => {
-        partMap[part.type] = part.value;
-    });
+  const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(dateObj);
+  const partMap = {};
+  parts.forEach(part => {
+    partMap[part.type] = part.value;
+  });
 
-    // Determine if it's EST or EDT
-    const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        timeZoneName: 'short'
-    });
-    const tzName = formatter.formatToParts(dateObj).find(part => part.type === 'timeZoneName')?.value || 'EST';
+  // Determine if it's EST or EDT
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    timeZoneName: 'short'
+  });
+  const tzName = formatter.formatToParts(dateObj).find(part => part.type === 'timeZoneName')?.value || 'EST';
 
-    return `${partMap.year}-${partMap.month}-${partMap.day} ${partMap.hour}:${partMap.minute}:${partMap.second} ${tzName}`;
+  return `${partMap.year}-${partMap.month}-${partMap.day} ${partMap.hour}:${partMap.minute}:${partMap.second} ${tzName}`;
 }
 
 /**
@@ -101,15 +101,15 @@ function formatDateEST(date) {
  * @returns {number} Days difference
  */
 function daysDifference(date1, date2) {
-    const diffTime = Math.abs(date2 - date1);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffTime = Math.abs(date2 - date1);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
 module.exports = {
-    formatDuration,
-    formatFileSize,
-    generateTimestampedFilename,
-    formatDateUTC,
-    formatDateEST,
-    daysDifference
+  formatDuration,
+  formatFileSize,
+  generateTimestampedFilename,
+  formatDateUTC,
+  formatDateEST,
+  daysDifference
 };
