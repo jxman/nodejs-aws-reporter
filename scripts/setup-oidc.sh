@@ -241,7 +241,7 @@ create_iam_policy() {
         "iam:UntagRole"
       ],
       "Resource": [
-        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/aws-service-report-generator*",
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/aws-service-report-*",
         "arn:aws:iam::${AWS_ACCOUNT_ID}:role/sam-*"
       ]
     },
