@@ -775,9 +775,77 @@ Lambda Function: arn:aws:lambda:us-east-1:123456789012:function:aws-service-repo
 
 ## Deployment Strategy
 
-### Initial Deployment
+### Deployment Policy - GitHub Actions Only
 
-**✅ AWS SAM (Selected Deployment Method)**
+**CRITICAL: All infrastructure deployments MUST use GitHub Actions workflows. Local deployment is DEPRECATED.**
+
+**✅ GitHub Actions with OIDC (Selected Deployment Method)**
+
+The project uses automated CI/CD via GitHub Actions with secure OIDC authentication:
+
+**Why GitHub Actions:**
+- **Security**: OIDC authentication instead of long-lived AWS credentials
+- **Audit Trail**: Complete deployment history in GitHub Actions logs
+- **Consistency**: Standardized deployment environment
+- **Team Visibility**: All deployments tracked and visible
+- **Best Practices**: Infrastructure deployed through CI/CD, never from local machines
+
+**Deployment Method:**
+```bash
+# Trigger deployment by pushing to main branch
+git push origin main
+
+# OR manually trigger workflow
+gh workflow run "Deploy SAM Application" --ref main
+
+# Monitor deployment
+gh run list --limit 5
+gh run view [RUN_ID] --web
+```
+
+**GitHub Actions OIDC Implementation:**
+- **IAM Role**: `GithubActionsOIDC-AWSServicesReporter-Role`
+- **IAM Policy**: `GithubActions-AWSServicesReporter-Policy`
+- **Repository Isolation**: Trust policy restricted to this repository only
+- **Least Privilege**: Scoped permissions for SAM/CloudFormation deployment
+- **No Credentials**: Uses OIDC web identity federation
+
+**Workflow Details:**
+- **File**: `.github/workflows/deploy.yml`
+- **Triggers**: Push to main, pull requests, manual dispatch
+- **Jobs**: test-and-validate → deploy (main branch only)
+- **Steps**: Lint → Test → Validate → Build → Deploy
+
+### Initial Deployment (First-Time Setup)
+
+**Prerequisites:**
+- GitHub repository created and code pushed
+- OIDC IAM resources deployed (see `archived/terraform/github-oidc/`)
+- GitHub secret `AWS_ROLE_ARN` configured
+
+**First Deployment:**
+```bash
+# 1. Ensure OIDC infrastructure is deployed
+# (Should already be deployed via Terraform)
+
+# 2. Add GitHub secret
+gh secret set AWS_ROLE_ARN --body "arn:aws:iam::ACCOUNT_ID:role/GithubActionsOIDC-AWSServicesReporter-Role"
+
+# 3. Push to main branch to trigger deployment
+git push origin main
+
+# 4. Monitor deployment
+gh run list --limit 1
+gh run view --web
+
+# 5. After deployment, configure S3 event trigger (one-time)
+aws cloudformation describe-stacks \
+  --stack-name aws-service-report-generator \
+  --query 'Stacks[0].Outputs[?OutputKey==`S3EventConfigurationCommand`].OutputValue' \
+  --output text | bash
+```
+
+### SAM Template (Underlying Infrastructure)
 ```yaml
 # template.yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -925,7 +993,14 @@ Outputs:
 
 **Alternative Deployment Methods (Not Selected)**
 
-AWS SAM was chosen as the deployment method. These alternatives are documented for reference:
+GitHub Actions with OIDC was chosen as the deployment method. These alternatives are documented for reference:
+
+**Local SAM Deployment (DEPRECATED):**
+- Manual `sam build` and `sam deploy` commands
+- Requires local AWS credentials
+- No audit trail or team visibility
+- Security risk: local credentials exposure
+- **Status**: Moved to local testing only
 
 **Terraform:**
 - Lambda function resource
@@ -933,78 +1008,89 @@ AWS SAM was chosen as the deployment method. These alternatives are documented f
 - S3 bucket event notification
 - SNS topic and subscriptions
 - CloudWatch log group and alarms
+- **Status**: Not selected (SAM preferred for Lambda-centric projects)
 
 **AWS CDK:**
 - TypeScript/Python constructs
 - Infrastructure as code with high-level abstractions
 - L2 constructs for Lambda, S3, SNS
+- **Status**: Not selected (SAM simpler for this use case)
 
 **Manual Deployment:**
 - Create Lambda function via console
 - Package code with dependencies using `npm install` and zip
 - Upload zip file to Lambda
 - Configure S3 trigger manually
-- Not recommended for production
+- **Status**: Not recommended for any environment
 
-### Deployment Steps (SAM)
+### Local Testing (Development Only)
 
 **Prerequisites:**
 - AWS SAM CLI installed: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
-- AWS CLI configured with appropriate credentials
-- Node.js 20.x installed locally for testing
+- Node.js 20.x installed locally
+- AWS CLI configured (for testing invocations only)
 
-**Initial Deployment:**
+**Local Testing Commands:**
 ```bash
-# 1. Validate SAM template
-sam validate
+# 1. Install dependencies
+cd src
+npm install
+npm run lint
+npm test
+cd ..
 
-# 2. Build the application
+# 2. Validate SAM template
+sam validate --lint
+
+# 3. Build the application (for local testing)
 sam build
 
-# 3. Deploy with guided prompts (first time only)
-sam deploy --guided
+# 4. Test local invocation (optional)
+sam local invoke ReportGeneratorFunction --event test-event.json
 
-# Follow prompts:
-#   - Stack Name: aws-service-report-generator
-#   - AWS Region: us-east-1 (or your preferred region)
-#   - Parameter SourceBucketName: aws-data-fetcher-output
-#   - Parameter NotificationEmail: your-email@example.com
-#   - Confirm changes before deploy: Y
-#   - Allow SAM CLI IAM role creation: Y
-#   - ReportGeneratorFunction may not have authorization defined, Is this okay?: Y
-#   - Save arguments to configuration file: Y
-#   - SAM configuration file: samconfig.toml
-#   - SAM configuration environment: default
-
-# 4. Confirm SNS subscription
-# Check your email and click the confirmation link
-
-# 5. Test manual invocation
+# 5. Test deployed function manually
 aws lambda invoke \
   --function-name aws-service-report-generator \
   --payload '{}' \
   response.json
 
-# 6. Check execution results
 cat response.json
 
-# 7. Verify S3 reports
+# 6. Verify S3 reports
 aws s3 ls s3://aws-data-fetcher-output/reports/
 aws s3 ls s3://aws-data-fetcher-output/reports/archive/
 ```
 
-**Subsequent Deployments:**
-```bash
-# After code changes, rebuild and deploy
-sam build
-sam deploy
+**⚠️ CRITICAL: Never use `sam deploy` for production. Always use GitHub Actions.**
 
-# No need for --guided flag after initial deployment
+### Monitoring Deployments
+
+**GitHub Actions Dashboard:**
+```bash
+# View recent deployments
+gh run list --limit 10
+
+# View specific deployment
+gh run view [RUN_ID]
+
+# View deployment logs in browser
+gh run view [RUN_ID] --web
+
+# Watch deployment in real-time
+gh run watch [RUN_ID]
 ```
 
-**Tear Down (Remove all resources):**
+**CloudFormation Stack Status:**
 ```bash
-sam delete --stack-name aws-service-report-generator
+# Check stack status
+aws cloudformation describe-stacks \
+  --stack-name aws-service-report-generator \
+  --query 'Stacks[0].StackStatus'
+
+# View stack events
+aws cloudformation describe-stack-events \
+  --stack-name aws-service-report-generator \
+  --max-items 20
 ```
 
 ---

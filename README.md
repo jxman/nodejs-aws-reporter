@@ -18,7 +18,7 @@ Automated AWS Lambda function that generates Excel reports from AWS infrastructu
   - Services with regional coverage metrics and percentage calculations
   - Service Coverage matrix with visual availability indicators (✓/✗)
 - **Smart Retention**: Latest report always available + 7-day archive with automatic cleanup
-- **Public Distribution**: Optional automatic copying to public S3 bucket for web access (with 5-minute cache)
+- **Public Distribution**: Automatic copying to public S3 bucket (`www.aws-services.synepho.com`) for web access (with 5-minute cache)
 - **Email Notifications**: Success/failure notifications with emojis and detailed metrics
 - **Data Quality**: Missing values displayed as "N/A" in gray italic, consistent date formatting
 - **Production-Ready**: Error handling, retry logic, structured logging, and CloudWatch alarms
@@ -104,55 +104,86 @@ aws logs tail /aws/lambda/aws-service-report-generator --since 24h
 
 ## Prerequisites
 
-- **AWS SAM CLI** installed ([installation guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html))
-- **AWS CLI** configured with appropriate credentials
-- **Node.js 20.x** installed locally
+- **GitHub repository** with this code
+- **AWS Account** with appropriate permissions
 - **Existing S3 bucket** (`aws-data-fetcher-output`) with AWS infrastructure data
+- **GitHub Actions** configured with OIDC (see Deployment section)
 
-## Quick Start
+**For local testing only:**
+- **AWS SAM CLI** installed ([installation guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html))
+- **Node.js 20.x** installed locally
 
-### 1. Install Dependencies
+## Deployment
+
+### Deployment Policy - GitHub Actions Only
+
+**CRITICAL: All infrastructure deployments MUST use GitHub Actions workflows. Local deployment is for testing only.**
+
+#### Why GitHub Actions is Mandatory:
+- **Security**: Uses OIDC authentication instead of long-lived AWS credentials
+- **Audit Trail**: Complete deployment history and logging
+- **Consistency**: Standardized deployment environment
+- **Team Visibility**: All deployments tracked and visible
+- **Best Practices**: Infrastructure deployed through CI/CD, never from local machines
+
+### GitHub Actions OIDC Security Implementation
+
+This project implements **best-practice OIDC authentication** with complete repository isolation:
+
+#### Project-Specific IAM Resources
+- **IAM Role**: `GithubActionsOIDC-AWSServicesReporter-Role`
+- **IAM Policy**: `GithubActions-AWSServicesReporter-Policy`
+- **Repository Restriction**: Only this specific repository can assume the role
+- **OIDC Provider**: GitHub-specific with official thumbprints
+
+#### Security Features
+- ✅ **Repository isolation**: Trust policy restricted to this specific repository
+- ✅ **Least privilege**: IAM permissions scoped to only required resources
+- ✅ **Project-specific naming**: No conflicts with other repositories
+- ✅ **Resource restrictions**: Permissions limited to project-specific AWS resources
+- ✅ **No long-lived credentials**: Uses OIDC web identity federation
+
+### Required Deployment Method
+
+Deploy infrastructure changes using GitHub Actions:
 
 ```bash
-cd src
-npm install
-cd ..
+# Trigger deployment by pushing to main branch
+git add .
+git commit -m "Description of changes"
+git push origin main
+
+# OR manually trigger the workflow
+gh workflow run "Deploy SAM Application" --ref main
+
+# Monitor deployment progress
+gh run list --limit 5
+gh run view [RUN_ID]
+
+# View deployment in browser
+gh run view [RUN_ID] --web
 ```
 
-### 2. Validate SAM Template
+### Initial Setup (One-Time)
+
+#### 1. Configure GitHub OIDC (If Not Already Done)
+
+The OIDC infrastructure should already be deployed. If setting up from scratch, see the archived Terraform configuration in `archived/terraform/github-oidc/` for reference.
+
+#### 2. Add GitHub Secret
+
+Add the AWS role ARN as a GitHub secret:
 
 ```bash
-sam validate
+# Get the role ARN (from OIDC Terraform outputs or AWS Console)
+gh secret set AWS_ROLE_ARN --body "arn:aws:iam::ACCOUNT_ID:role/GithubActionsOIDC-AWSServicesReporter-Role"
 ```
 
-### 3. Build Application
-
-```bash
-sam build
-```
-
-### 4. Deploy (First Time)
-
-```bash
-sam deploy --guided
-```
-
-Follow the prompts:
-- **Stack Name**: `aws-service-report-generator`
-- **AWS Region**: `us-east-1` (or your preferred region)
-- **Parameter SourceBucketName**: `aws-data-fetcher-output`
-- **Parameter NotificationEmail**: `your-email@example.com`
-- **Parameter DistributionBucketName**: (Optional) Public S3 bucket for distribution (e.g., `www.aws-services.synepho.com`), or leave empty to skip distribution
-- **Parameter DistributionKeyPath**: (Optional) S3 key path in distribution bucket, default: `reports/aws-service-report-latest.xlsx`
-- **Confirm changes before deploy**: `Y`
-- **Allow SAM CLI IAM role creation**: `Y`
-- **Save arguments to configuration file**: `Y`
-
-### 5. Confirm SNS Subscription
+#### 3. Confirm SNS Subscription (After First Deployment)
 
 Check your email and click the confirmation link to receive notifications.
 
-### 6. Configure S3 Event Trigger (CRITICAL)
+#### 4. Configure S3 Event Trigger (CRITICAL)
 
 **⚠️ This is a required one-time setup step for automatic daily report generation.**
 
@@ -210,7 +241,31 @@ Report generated and uploaded
 SNS email notification sent
 ```
 
-### 7. Test Manual Invocation
+### Local Testing Only
+
+**Important**: Local SAM commands are for testing purposes only. Never use these for production deployments.
+
+#### Build and Test Locally
+
+```bash
+# Install dependencies
+cd src
+npm install
+cd ..
+
+# Validate SAM template
+sam validate --lint
+
+# Build application
+sam build
+
+# Test manual invocation locally (requires AWS credentials)
+sam local invoke ReportGeneratorFunction --event test-event.json
+```
+
+#### Manual Lambda Invocation (Testing)
+
+For quick testing of deployed function:
 
 ```bash
 aws lambda invoke \
@@ -221,7 +276,7 @@ aws lambda invoke \
 cat response.json
 ```
 
-### 8. Verify Reports
+#### Verify Reports
 
 ```bash
 # Check latest report
@@ -288,20 +343,20 @@ aws-data-fetcher-output/
         └── ... (7 days retained, older automatically deleted)
 ```
 
-### Distribution Bucket (Optional)
-If configured, the latest report is automatically copied to a public distribution bucket:
+### Distribution Bucket (Enabled)
+The latest report is automatically copied to a public distribution bucket:
 ```
-www.aws-services.synepho.com/     (Example public bucket)
+www.aws-services.synepho.com/
 └── reports/
     └── aws-service-report-latest.xlsx   (Publicly accessible with 5-minute cache)
 ```
 
 **Distribution Details:**
-- Happens automatically after each report generation
+- **Enabled and Active**: Automatically copies after each report generation
 - Uses S3 CopyObject for fast, server-side copying
 - Sets `cache-control: public, max-age=300` (5-minute cache for CDN/browser)
 - Non-critical operation: failures are logged but don't stop report generation
-- Useful for serving reports via S3 static website hosting or CloudFront CDN
+- Serves reports via S3 static website hosting accessible at CloudFront CDN
 
 ## Email Notifications
 
@@ -347,25 +402,33 @@ Archive Report: s3://aws-data-fetcher-output/reports/archive/aws-service-report-
 
 ## Configuration
 
-### Enable/Disable Public Distribution
+### Distribution Configuration
 
-**Enable distribution during deployment:**
-```bash
-sam deploy --parameter-overrides \
-  DistributionBucketName=www.aws-services.synepho.com \
-  DistributionKeyPath=reports/aws-service-report-latest.xlsx
-```
-
-**Disable distribution:**
-```bash
-sam deploy --parameter-overrides DistributionBucketName=''
-```
+**Current Configuration (Active):**
+- Distribution Bucket: `www.aws-services.synepho.com`
+- Distribution Key: `reports/aws-service-report-latest.xlsx`
+- Cache-Control: `public, max-age=300` (5 minutes)
+- Status: ✅ Enabled and working
 
 **Check current configuration:**
 ```bash
 aws lambda get-function-configuration \
   --function-name aws-service-report-generator \
-  --query 'Environment.Variables.DISTRIBUTION_BUCKET'
+  --query 'Environment.Variables.{DISTRIBUTION_BUCKET: DISTRIBUTION_BUCKET, DISTRIBUTION_KEY: DISTRIBUTION_KEY}' \
+  --output json
+```
+
+**To disable distribution:**
+```bash
+aws cloudformation update-stack \
+  --stack-name aws-service-report-generator \
+  --use-previous-template \
+  --parameters \
+    ParameterKey=SourceBucketName,UsePreviousValue=true \
+    ParameterKey=NotificationEmail,UsePreviousValue=true \
+    ParameterKey=DistributionBucketName,ParameterValue='' \
+    ParameterKey=DistributionKeyPath,UsePreviousValue=true \
+  --capabilities CAPABILITY_IAM
 ```
 
 ### Change Distribution Cache Duration
@@ -378,10 +441,35 @@ The default cache-control is `public, max-age=300` (5 minutes). To change this, 
 
 ```bash
 # Make changes to src/*.js files
-# Then rebuild and redeploy
+# Commit and push to trigger deployment
 
+git add .
+git commit -m "Description of changes"
+git push origin main
+
+# GitHub Actions will automatically:
+# 1. Run tests and linting
+# 2. Validate SAM template
+# 3. Build application
+# 4. Deploy to AWS (on main branch only)
+```
+
+### Local Testing Before Push
+
+```bash
+# Install dependencies
+cd src
+npm install
+npm run lint
+npm test
+cd ..
+
+# Validate and build
+sam validate --lint
 sam build
-sam deploy
+
+# Test locally (optional)
+sam local invoke ReportGeneratorFunction --event test-event.json
 ```
 
 ### View Logs
@@ -549,10 +637,14 @@ See [AWS S3 Event Notification Documentation](https://docs.aws.amazon.com/Amazon
 
 ## Cleanup
 
-To remove all resources:
+To remove all resources, use AWS CLI (the stack can be deleted manually):
 
 ```bash
-sam delete --stack-name aws-service-report-generator
+# Delete the CloudFormation stack
+aws cloudformation delete-stack --stack-name aws-service-report-generator
+
+# Monitor deletion progress
+aws cloudformation describe-stacks --stack-name aws-service-report-generator
 ```
 
 **Note**: This will NOT delete the S3 bucket or reports. To delete reports:
@@ -560,6 +652,8 @@ sam delete --stack-name aws-service-report-generator
 ```bash
 aws s3 rm s3://aws-data-fetcher-output/reports/ --recursive
 ```
+
+**Security Cleanup**: The OIDC IAM resources (`GithubActionsOIDC-AWSServicesReporter-Role` and `GithubActions-AWSServicesReporter-Policy`) are managed separately via Terraform in `archived/terraform/github-oidc/` and should be retained if deploying other projects with the same security model.
 
 ## Related Projects
 
