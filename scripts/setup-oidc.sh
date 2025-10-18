@@ -194,6 +194,7 @@ create_iam_policy() {
       ],
       "Resource": [
         "arn:aws:cloudformation:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack/aws-service-report-generator/*",
+        "arn:aws:cloudformation:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack/aws-sam-cli-managed-default/*",
         "arn:aws:cloudformation:${AWS_REGION}:aws:transform/Serverless-2016-10-31"
       ]
     },
