@@ -4,7 +4,7 @@
   "description": "AWS Lambda function that generates Excel reports from AWS infrastructure data",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"No tests configured yet - tests will be added in Phase 2\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build": "sam build",
