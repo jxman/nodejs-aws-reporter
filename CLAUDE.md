@@ -62,6 +62,56 @@ This project implements **best-practice OIDC authentication** with complete repo
 - ✅ No long-lived credentials
 - ✅ Complete audit trail via GitHub Actions logs
 
+### CRITICAL: IAM Policy Synchronization Pattern
+
+**MANDATORY PROCESS: Whenever you update the GitHub Actions IAM policy, you MUST also update the setup-oidc.sh script.**
+
+This ensures that future OIDC setups or team members will have the correct permissions from the start.
+
+#### Required Steps for IAM Policy Changes:
+
+1. **Update Live Policy** (for immediate effect):
+   ```bash
+   # Create new policy version
+   aws iam create-policy-version \
+     --policy-arn arn:aws:iam::ACCOUNT:policy/GithubActions-AWSServicesReporter-Policy \
+     --policy-document file:///path/to/updated-policy.json \
+     --set-as-default
+   ```
+
+2. **Update setup-oidc.sh Script** (for future consistency):
+   - Edit `scripts/setup-oidc.sh`
+   - Update the `POLICY_DOC` variable (lines ~172-352) with identical permissions
+   - Keep statement order consistent with live policy
+   - Ensure all actions, resources, and conditions match exactly
+
+3. **Commit Both Changes Together**:
+   ```bash
+   git add scripts/setup-oidc.sh
+   git commit -m "chore: Add [SERVICE] permissions to IAM policy and setup script"
+   git push origin main
+   ```
+
+4. **Verify Synchronization**:
+   ```bash
+   # Compare live policy with script
+   aws iam get-policy-version \
+     --policy-arn arn:aws:iam::ACCOUNT:policy/GithubActions-AWSServicesReporter-Policy \
+     --version-id vN --query 'PolicyVersion.Document' --output json
+   ```
+
+#### Example Use Cases:
+- **Adding KMS permissions**: Update both live policy and setup-oidc.sh
+- **Adding new AWS service**: Update both locations
+- **Security hardening**: Update both locations
+- **Resource restrictions**: Update both locations
+
+**Why This Matters:**
+- Prevents drift between bootstrap script and production
+- Enables consistent team onboarding
+- Maintains infrastructure-as-code principles
+- Reduces troubleshooting time for permission issues
+
 ## Development Commands
 
 ### Local Testing Only (NOT for deployment)
