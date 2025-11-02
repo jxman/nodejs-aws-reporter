@@ -35,5 +35,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "overrides": {
+    "glob": "^10.3.10",
+    "inflight": "npm:@finkle/inflight@^1.0.6"
   }
 }
