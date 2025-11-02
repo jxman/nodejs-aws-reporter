@@ -37,12 +37,67 @@ Conditions:
   HasDistributionBucket: !Not [!Equals [!Ref DistributionBucketName, '']]
 
 Resources:
+  # KMS Key for SNS Topic Encryption
+  SNSEncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for encrypting SNS topic notifications
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          # Root account administrative access
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          # SNS service access to use the key
+          - Sid: Allow SNS to use the key
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: '*'
+          # CloudWatch Alarms access
+          - Sid: Allow CloudWatch Alarms to publish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: '*'
+          # Allow Lambda execution roles in this account
+          - Sid: Allow Lambda execution roles
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: '*'
+            Condition:
+              StringLike:
+                aws:PrincipalArn: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-report-generator-*
+
+  # KMS Key Alias
+  SNSEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/aws-service-report-sns
+      TargetKeyId: !Ref SNSEncryptionKey
+
   # SNS Topic for Notifications
   ReportNotificationsTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: aws-service-report-notifications
       DisplayName: AWS Service Report Notifications
+      KmsMasterKeyId: !Ref SNSEncryptionKey
       Subscription:
         - Endpoint: !Ref NotificationEmail
           Protocol: email
@@ -97,6 +152,12 @@ Resources:
               Action:
                 - sns:Publish
               Resource: !Ref ReportNotificationsTopic
+            # KMS Access (SNS Encryption)
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:GenerateDataKey
+              Resource: !GetAtt SNSEncryptionKey.Arn
             # CloudWatch Logs (Basic Execution)
             - Effect: Allow
               Action:
@@ -193,6 +254,16 @@ Outputs:
     Value: !Ref ReportNotificationsTopic
     Export:
       Name: aws-service-report-notifications-topic-arn
+
+  SNSEncryptionKeyArn:
+    Description: ARN of the KMS key used for SNS topic encryption
+    Value: !GetAtt SNSEncryptionKey.Arn
+    Export:
+      Name: aws-service-report-sns-encryption-key-arn
+
+  SNSEncryptionKeyId:
+    Description: ID of the KMS key used for SNS topic encryption
+    Value: !Ref SNSEncryptionKey
 
   LatestReportS3Path:
     Description: S3 path to the latest report
