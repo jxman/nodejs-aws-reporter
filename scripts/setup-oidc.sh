@@ -152,9 +152,14 @@ create_oidc_provider() {
             --url "https://$OIDC_PROVIDER_URL" \
             --client-id-list "sts.amazonaws.com" \
             --thumbprint-list "$THUMBPRINT_1" "$THUMBPRINT_2" \
-            --tags "Key=Name,Value=GitHubActionsOIDC-$PROJECT_NAME" \
-                   "Key=Project,Value=aws-services-reporter" \
-                   "Key=ManagedBy,Value=Script" \
+            --tags "Key=Environment,Value=prod" \
+                   "Key=ManagedBy,Value=bootstrap-script" \
+                   "Key=Owner,Value=John Xanthopoulos" \
+                   "Key=Project,Value=aws-services" \
+                   "Key=Service,Value=aws-service-report-generator" \
+                   "Key=GithubRepo,Value=github.com/jxman/aws-services-reporter" \
+                   "Key=Name,Value=GitHubActionsOIDC-$PROJECT_NAME" \
+                   "Key=SubService,Value=github-oidc-provider" \
             --query 'OpenIDConnectProviderArn' \
             --output text)
         print_success "OIDC Provider created: $PROVIDER_ARN"
@@ -389,9 +394,14 @@ EOF
             --policy-name "$POLICY_NAME" \
             --policy-document "$POLICY_DOC" \
             --description "Policy for GitHub Actions to deploy AWS Services Reporter SAM application" \
-            --tags "Key=Name,Value=$POLICY_NAME" \
-                   "Key=Project,Value=aws-services-reporter" \
-                   "Key=ManagedBy,Value=Script" \
+            --tags "Key=Environment,Value=prod" \
+                   "Key=ManagedBy,Value=bootstrap-script" \
+                   "Key=Owner,Value=John Xanthopoulos" \
+                   "Key=Project,Value=aws-services" \
+                   "Key=Service,Value=aws-service-report-generator" \
+                   "Key=GithubRepo,Value=github.com/jxman/aws-services-reporter" \
+                   "Key=Name,Value=$POLICY_NAME" \
+                   "Key=SubService,Value=github-actions-policy" \
             --query 'Policy.Arn' \
             --output text)
         print_success "IAM Policy created: $POLICY_ARN"
@@ -445,9 +455,14 @@ EOF
             --role-name "$ROLE_NAME" \
             --assume-role-policy-document "$TRUST_POLICY" \
             --description "Role for GitHub Actions to deploy AWS Services Reporter SAM application" \
-            --tags "Key=Name,Value=$ROLE_NAME" \
-                   "Key=Project,Value=aws-services-reporter" \
-                   "Key=ManagedBy,Value=Script" \
+            --tags "Key=Environment,Value=prod" \
+                   "Key=ManagedBy,Value=bootstrap-script" \
+                   "Key=Owner,Value=John Xanthopoulos" \
+                   "Key=Project,Value=aws-services" \
+                   "Key=Service,Value=aws-service-report-generator" \
+                   "Key=GithubRepo,Value=github.com/jxman/aws-services-reporter" \
+                   "Key=Name,Value=$ROLE_NAME" \
+                   "Key=SubService,Value=github-actions-role" \
             --query 'Role.Arn' \
             --output text)
         print_success "IAM Role created: $ROLE_ARN"

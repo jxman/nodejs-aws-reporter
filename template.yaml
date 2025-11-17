@@ -10,6 +10,13 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - arm64
+    Tags:
+      Environment: prod
+      ManagedBy: sam
+      Owner: John Xanthopoulos
+      Project: aws-services
+      Service: aws-service-report-generator
+      GithubRepo: github.com/jxman/aws-services-reporter
 
 Parameters:
   SourceBucketName:
@@ -43,6 +50,23 @@ Resources:
     Properties:
       Description: KMS key for encrypting SNS topic notifications
       EnableKeyRotation: true
+      Tags:
+        - Key: Name
+          Value: aws-service-report-sns-key
+        - Key: SubService
+          Value: kms-sns-encryption
+        - Key: Environment
+          Value: prod
+        - Key: ManagedBy
+          Value: sam
+        - Key: Owner
+          Value: John Xanthopoulos
+        - Key: Project
+          Value: aws-services
+        - Key: Service
+          Value: aws-service-report-generator
+        - Key: GithubRepo
+          Value: github.com/jxman/aws-services-reporter
       KeyPolicy:
         Version: '2012-10-17'
         Statement:
@@ -98,6 +122,23 @@ Resources:
       TopicName: aws-service-report-notifications
       DisplayName: AWS Service Report Notifications
       KmsMasterKeyId: !Ref SNSEncryptionKey
+      Tags:
+        - Key: Name
+          Value: aws-service-report-notifications
+        - Key: SubService
+          Value: sns-notifications
+        - Key: Environment
+          Value: prod
+        - Key: ManagedBy
+          Value: sam
+        - Key: Owner
+          Value: John Xanthopoulos
+        - Key: Project
+          Value: aws-services
+        - Key: Service
+          Value: aws-service-report-generator
+        - Key: GithubRepo
+          Value: github.com/jxman/aws-services-reporter
       Subscription:
         - Endpoint: !Ref NotificationEmail
           Protocol: email
@@ -110,6 +151,9 @@ Resources:
       Description: Generates Excel reports from AWS infrastructure data
       CodeUri: src/
       Handler: index.handler
+      Tags:
+        Name: aws-service-report-generator
+        SubService: report-generator-lambda
       Environment:
         Variables:
           SOURCE_BUCKET: !Ref SourceBucketName
@@ -198,6 +242,23 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${ReportGeneratorFunction}
       RetentionInDays: 30
+      Tags:
+        - Key: Name
+          Value: /aws/lambda/aws-service-report-generator
+        - Key: SubService
+          Value: cloudwatch-logs
+        - Key: Environment
+          Value: prod
+        - Key: ManagedBy
+          Value: sam
+        - Key: Owner
+          Value: John Xanthopoulos
+        - Key: Project
+          Value: aws-services
+        - Key: Service
+          Value: aws-service-report-generator
+        - Key: GithubRepo
+          Value: github.com/jxman/aws-services-reporter
 
   # CloudWatch Alarms
   ReportGeneratorErrorAlarm:
@@ -218,6 +279,23 @@ Resources:
       AlarmActions:
         - !Ref ReportNotificationsTopic
       TreatMissingData: notBreaching
+      Tags:
+        - Key: Name
+          Value: aws-service-report-generator-errors
+        - Key: SubService
+          Value: alarm-errors
+        - Key: Environment
+          Value: prod
+        - Key: ManagedBy
+          Value: sam
+        - Key: Owner
+          Value: John Xanthopoulos
+        - Key: Project
+          Value: aws-services
+        - Key: Service
+          Value: aws-service-report-generator
+        - Key: GithubRepo
+          Value: github.com/jxman/aws-services-reporter
 
   ReportGeneratorTimeoutAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -237,6 +315,23 @@ Resources:
       AlarmActions:
         - !Ref ReportNotificationsTopic
       TreatMissingData: notBreaching
+      Tags:
+        - Key: Name
+          Value: aws-service-report-generator-timeout-warning
+        - Key: SubService
+          Value: alarm-timeout
+        - Key: Environment
+          Value: prod
+        - Key: ManagedBy
+          Value: sam
+        - Key: Owner
+          Value: John Xanthopoulos
+        - Key: Project
+          Value: aws-services
+        - Key: Service
+          Value: aws-service-report-generator
+        - Key: GithubRepo
+          Value: github.com/jxman/aws-services-reporter
 
 Outputs:
   ReportGeneratorFunctionArn:
