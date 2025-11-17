@@ -334,7 +334,9 @@ create_iam_policy() {
         "logs:PutRetentionPolicy",
         "logs:DeleteRetentionPolicy",
         "logs:TagLogGroup",
-        "logs:UntagLogGroup"
+        "logs:UntagLogGroup",
+        "logs:ListTagsForResource",
+        "logs:ListTagsLogGroup"
       ],
       "Resource": "arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/aws/lambda/aws-service-report-generator*"
     },
@@ -346,7 +348,8 @@ create_iam_policy() {
         "cloudwatch:DeleteAlarms",
         "cloudwatch:DescribeAlarms",
         "cloudwatch:TagResource",
-        "cloudwatch:UntagResource"
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
       ],
       "Resource": "arn:aws:cloudwatch:${AWS_REGION}:${AWS_ACCOUNT_ID}:alarm:aws-service-report-*"
     },
