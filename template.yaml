@@ -44,17 +44,17 @@ Conditions:
   HasDistributionBucket: !Not [!Equals [!Ref DistributionBucketName, '']]
 
 Resources:
-  # KMS Key for SNS Topic Encryption
+  # KMS Key for SNS Topic and CloudWatch Logs Encryption
   SNSEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
-      Description: KMS key for encrypting SNS topic notifications
+      Description: KMS key for encrypting SNS topic notifications and CloudWatch Logs
       EnableKeyRotation: true
       Tags:
         - Key: Name
-          Value: aws-service-report-sns-key
+          Value: aws-service-report-encryption-key
         - Key: SubService
-          Value: kms-sns-encryption
+          Value: kms-encryption
         - Key: Environment
           Value: prod
         - Key: ManagedBy
@@ -95,6 +95,22 @@ Resources:
               - kms:Decrypt
               - kms:GenerateDataKey
             Resource: '*'
+          # CloudWatch Logs access
+          - Sid: Allow CloudWatch Logs to use the key
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:CreateGrant
+            Resource: '*'
+            Condition:
+              ArnLike:
+                kms:EncryptionContext:aws:logs:arn: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/aws-service-report-generator
           # Allow Lambda execution roles in this account
           - Sid: Allow Lambda execution roles
             Effect: Allow
@@ -112,7 +128,7 @@ Resources:
   SNSEncryptionKeyAlias:
     Type: AWS::KMS::Alias
     Properties:
-      AliasName: alias/aws-service-report-sns
+      AliasName: alias/aws-service-report-encryption
       TargetKeyId: !Ref SNSEncryptionKey
 
   # SNS Topic for Notifications
@@ -242,6 +258,7 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${ReportGeneratorFunction}
       RetentionInDays: 30
+      KmsKeyId: !GetAtt SNSEncryptionKey.Arn
       Tags:
         - Key: Name
           Value: /aws/lambda/aws-service-report-generator
