@@ -28,7 +28,7 @@ An AWS-based reporting system that processes AWS infrastructure data and generat
 ┌─────────────────────┐
 │  Lambda Function    │
 │  Report Generator   │
-│  (Node.js 20.x)     │
+│  (Node.js 22.x)     │
 └──────┬──────────────┘
        │
        │ (2) Reads complete-data.json
@@ -113,7 +113,7 @@ An AWS-based reporting system that processes AWS infrastructure data and generat
 
 **Name:** `aws-service-report-generator`
 
-**Runtime:** Node.js 20.x (LTS, v18 approaching EOL)
+**Runtime:** Node.js 22.x (LTS)
 
 **Memory:** 512 MB (adjustable based on data size)
 
@@ -193,7 +193,7 @@ END
 - **@aws-sdk/client-s3:** Modern AWS SDK v3 (modular, smaller bundle size)
 - **@aws-sdk/client-sns:** SNS client for success/failure notifications
 - **exceljs:** Comprehensive Excel generation library with styling support
-- **date-fns:** Lightweight date formatting utilities (v3 for Node.js 20)
+- **date-fns:** Lightweight date formatting utilities (v3 for Node.js 22)
 
 ---
 
@@ -882,7 +882,7 @@ Resources:
     Properties:
       FunctionName: aws-service-report-generator
       Description: Generates Excel reports from AWS infrastructure data
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Handler: index.handler
       MemorySize: 512
       Timeout: 300
@@ -1027,7 +1027,7 @@ GitHub Actions with OIDC was chosen as the deployment method. These alternatives
 
 **Prerequisites:**
 - AWS SAM CLI installed: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
-- Node.js 20.x installed locally
+- Node.js 22.x installed locally
 - AWS CLI configured (for testing invocations only)
 
 **Local Testing Commands:**
@@ -1215,7 +1215,7 @@ aws cloudformation describe-stack-events \
 - 7-day archive retention keeps storage costs minimal
 - CloudWatch Alarms are the primary cost driver (~95% of total)
 - Consider removing alarms for cost savings (rely on SNS from Lambda)
-- Node.js 20 native performance improvements reduce execution time
+- Node.js 22 native performance improvements reduce execution time
 
 ---
 
@@ -1294,8 +1294,8 @@ All key design decisions have been confirmed:
    - **Rationale:** Source data in us-east-1, no multi-region requirements for Phase 1
 
 6. **✅ Node.js Version:**
-   - **Decision:** Node.js 20.x
-   - **Rationale:** LTS support, Node.js 18 approaching EOL (2025-04-30)
+   - **Decision:** Node.js 22.x
+   - **Rationale:** LTS support, improved performance and security
 
 7. **✅ Deployment Method:**
    - **Decision:** AWS SAM
@@ -1405,7 +1405,7 @@ All key design decisions have been confirmed:
 ## Appendix
 
 ### Technology Stack Summary
-- **Language:** Node.js 20.x (LTS)
+- **Language:** Node.js 22.x (LTS)
 - **AWS Services:** Lambda, S3, SNS, CloudWatch, IAM
 - **Key Libraries:** AWS SDK v3 (S3 + SNS), ExcelJS, date-fns v3
 - **Deployment:** AWS SAM (CloudFormation)

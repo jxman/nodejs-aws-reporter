@@ -30,7 +30,7 @@ Before setting up the deployment pipeline, ensure you have:
 2. **AWS CLI** installed and configured locally
 3. **jq** (JSON processor) installed
 4. **GitHub Repository** for this project
-5. **Node.js** (>= 20.0.0) installed locally
+5. **Node.js** (>= 22.0.0) installed locally
 
 ### Required Tools
 
@@ -244,7 +244,7 @@ The deployment workflow triggers on:
 Runs on all triggers (push, PR, manual):
 
 1. Checkout code
-2. Setup Node.js 18
+2. Setup Node.js 22
 3. Install dependencies
 4. Run ESLint linting
 5. Run tests (if available)

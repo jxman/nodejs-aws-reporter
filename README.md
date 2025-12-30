@@ -1,7 +1,7 @@
 # 📊 AWS Service Report Generator
 
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
-![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)
+![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)
 ![AWS SDK](https://img.shields.io/badge/AWS%20SDK-v3.670.0-orange.svg)
 ![SAM](https://img.shields.io/badge/AWS%20SAM-Serverless-yellow.svg)
 
@@ -33,7 +33,7 @@ graph LR
     end
 
     subgraph Processing["⚡ Report Processing"]
-        LAMBDA["<b>Lambda Function</b><br/><i>Node.js 20.x</i><br/>Excel Report Generator"]
+        LAMBDA["<b>Lambda Function</b><br/><i>Node.js 22.x</i><br/>Excel Report Generator"]
     end
 
     subgraph Output["📤 Output Services"]
@@ -111,7 +111,7 @@ aws logs tail /aws/lambda/aws-service-report-generator --since 24h
 
 **For local testing only:**
 - **AWS SAM CLI** installed ([installation guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html))
-- **Node.js 20.x** installed locally
+- **Node.js 22.x** installed locally
 
 ## Deployment
 
