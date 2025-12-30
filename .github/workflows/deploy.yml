@@ -125,7 +125,7 @@ jobs:
         run: |
           FUNCTION_NAME=$(aws cloudformation describe-stacks \
             --stack-name aws-service-report-generator \
-            --query 'Stacks[0].Outputs[?OutputKey==`ReportGeneratorFunction`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`ReportGeneratorFunctionName`].OutputValue' \
             --output text)
           echo "function-name=$FUNCTION_NAME" >> $GITHUB_OUTPUT
 
