@@ -143,6 +143,38 @@ This project implements **best-practice OIDC authentication** with complete repo
 - ✅ **Resource restrictions**: Permissions limited to project-specific AWS resources
 - ✅ **No long-lived credentials**: Uses OIDC web identity federation
 
+### Automated Testing After Deployment
+
+**Every deployment automatically tests the Lambda function to ensure it works correctly:**
+
+The GitHub Actions workflow includes an automated test step that:
+1. **Retrieves function name** from CloudFormation stack outputs
+2. **Invokes Lambda function** with empty payload (simulates S3 event trigger)
+3. **Validates response** checks for HTTP 200 status code
+4. **Displays results** in GitHub Actions summary with:
+   - Full Lambda response (JSON formatted)
+   - Execution status (success/failure)
+   - Reminders to check email for SNS notification
+   - Instructions to verify report in S3
+
+**Benefits:**
+- ✅ **Immediate feedback**: Know if deployment succeeded within seconds
+- ✅ **End-to-end validation**: Confirms Lambda can access S3, generate Excel, and send SNS
+- ✅ **Deployment confidence**: Catch configuration issues before they affect production
+- ✅ **Visual results**: GitHub Actions summary shows detailed test output
+
+**View test results:**
+```bash
+# View recent workflow runs
+gh run list --limit 5
+
+# View detailed test output for specific run
+gh run view [RUN_ID]
+
+# Open in browser to see formatted summary
+gh run view [RUN_ID] --web
+```
+
 ### Required Deployment Method
 
 Deploy infrastructure changes using GitHub Actions:

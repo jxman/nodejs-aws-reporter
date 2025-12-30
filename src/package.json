@@ -1,6 +1,6 @@
 {
   "name": "aws-service-report-generator",
-  "version": "1.0.0",
+  "version": "1.3.1",
   "description": "AWS Lambda function that generates Excel reports from AWS infrastructure data",
   "main": "src/index.js",
   "scripts": {

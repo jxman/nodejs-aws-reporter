@@ -466,7 +466,7 @@ fields @timestamp, level, message, regionCount, serviceCount, processingTime
 
 ## GitHub Actions Workflow
 
-The project uses GitHub Actions for automated CI/CD:
+The project uses GitHub Actions for automated CI/CD with comprehensive testing:
 
 **Workflow File**: `.github/workflows/deploy.yml`
 
@@ -488,10 +488,23 @@ The project uses GitHub Actions for automated CI/CD:
    - Configure AWS credentials via OIDC
    - Build SAM application
    - Deploy to AWS using SAM CLI
+   - Get CloudFormation stack outputs (function name, ARNs)
    - Output deployment summary
+   - **Test Lambda function** (NEW):
+     - Automatically invokes deployed Lambda function
+     - Validates response (checks for HTTP 200)
+     - Displays test results in GitHub Actions summary
+     - Provides full JSON response for debugging
+     - Confirms end-to-end functionality (S3 read, Excel generation, SNS notification)
 
 **GitHub Secrets Required**:
 - `AWS_ROLE_ARN`: ARN of the OIDC-enabled IAM role
+
+**Automated Testing Benefits**:
+- Immediate feedback on deployment success
+- Catches configuration issues before they affect production
+- Validates all integrations (S3, Excel generation, SNS)
+- Visual test results in GitHub Actions summary
 
 ## Notes for Claude Code
 
