@@ -138,3 +138,42 @@ jobs:
           echo "**Region:** us-east-1" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Test Lambda Function
+        id: test-lambda
+        run: |
+          echo "### Testing Deployed Lambda Function :test_tube:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Invoking Lambda function to generate test report..." >> $GITHUB_STEP_SUMMARY
+
+          # Invoke the Lambda function with empty payload
+          aws lambda invoke \
+            --function-name ${{ steps.stack-outputs.outputs.function-name }} \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            response.json
+
+          # Check the response
+          if [ -f response.json ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Lambda Response:**" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat response.json | jq '.' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+            # Check if the invocation was successful
+            STATUS_CODE=$(cat response.json | jq -r '.statusCode // empty')
+            if [ "$STATUS_CODE" = "200" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ **Test Result:** Lambda function executed successfully" >> $GITHUB_STEP_SUMMARY
+              echo "📧 SNS notification should be sent to configured email" >> $GITHUB_STEP_SUMMARY
+              echo "📊 Check S3 bucket for generated report" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Test Result:** Lambda function returned non-200 status code" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Test Result:** Failed to invoke Lambda function" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
