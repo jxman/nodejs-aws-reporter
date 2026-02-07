@@ -21,8 +21,8 @@
   "author": "jxman",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.670.0",
-    "@aws-sdk/client-sns": "^3.670.0",
+    "@aws-sdk/client-s3": "^3.974.0",
+    "@aws-sdk/client-sns": "^3.974.0",
     "exceljs": "^4.4.0",
     "date-fns": "^3.6.0"
   },
