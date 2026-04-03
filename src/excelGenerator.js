@@ -138,7 +138,7 @@ async function createRegionsSheet(workbook, sourceData) {
           // Format as YYYY-MM-DD
           formattedLaunchDate = date.toISOString().split('T')[0];
         }
-      } catch (e) {
+      } catch (_e) {
         formattedLaunchDate = launchDate; // Use original if parsing fails
       }
     }
